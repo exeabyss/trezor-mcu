@@ -83,6 +83,35 @@ void layoutProgressSwipe(const char *desc, int permil)
 	layoutProgress(desc, permil);
 }
 
+void layoutScroll(const char *desc, int num_total, int num_screen, int current, const char entries[14][12], int padding)
+{
+	if (num_total < 0 || num_total > 14 || num_screen < 0 || num_screen > 5 || num_screen / 2 * 2 == num_screen || current < 0 || current > num_total - 1)
+		return;
+
+	oledClear();
+	
+	const int CenterX = OLED_WIDTH / 2;
+	const int Y = OLED_HEIGHT / 4 - FONT_HEIGHT / 2;
+
+	int width = OLED_WIDTH - padding * 2;
+	int gap = width / (num_screen - 1);
+	int t = (num_screen - 1) / 2;
+	for (int i = 0; i < num_screen; ++i)
+	{
+		int x = CenterX - gap * (t - i);
+		int n = (current + i - t + num_total) % num_total;
+		oledDrawStringCenterX(x, Y, entries[n]);
+	}
+
+	int halfgap = gap / 2;
+	oledInvert(CenterX - halfgap, Y - 2, CenterX + halfgap - 1, Y + FONT_HEIGHT + 1);
+
+	if (desc)
+		oledDrawStringCenterMultiline(OLED_HEIGHT - FONT_HEIGHT * 4 - 2, desc);
+
+	oledRefresh();
+}
+
 void layoutScreensaver(void)
 {
 	layoutLast = layoutScreensaver;

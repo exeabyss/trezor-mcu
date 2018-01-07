@@ -9,8 +9,8 @@ const uint8_t * const font_data[256] = {
 	/* 0x05 _ */ (uint8_t *)"\x01\x00",
 	/* 0x06 _ */ (uint8_t *)"\x07\x18\x1c\x0e\x18\x30\x40\x80",
 	/* 0x07 _ */ (uint8_t *)"\x01\x00",
-	/* 0x08 _ */ (uint8_t *)"\x01\x00",
-	/* 0x09 _ */ (uint8_t *)"\x01\x00",
+	/* 0x08 _ */ (uint8_t *)"\x0c\x08\x1c\x22\x41\x63\x55\x49\x55\x63\x41\x41\x7f", // BACKSPACE
+	/* 0x09 _ */ (uint8_t *)"\x06\x0e\x02\x02\x02\x02\x0e", // SPACE
 	/* 0x0a _ */ (uint8_t *)"\x01\x00",
 	/* 0x0b _ */ (uint8_t *)"\x01\x00",
 	/* 0x0c _ */ (uint8_t *)"\x01\x00",

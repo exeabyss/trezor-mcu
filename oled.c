@@ -269,10 +269,11 @@ char oledConvertChar(const char c) {
 	return 0;
 }
 
-int oledStringWidth(const char *text) {
+int oledPartialStringWidth(const char *text, int num)
+{
 	if (!text) return 0;
 	int l = 0;
-	for (; *text; text++) {
+	for (; *text && num; text++, num--) {
 		char c = oledConvertChar(*text);
 		if (c) {
 			l += fontCharWidth(c) + 1;
@@ -281,11 +282,16 @@ int oledStringWidth(const char *text) {
 	return l;
 }
 
-void oledDrawStringSize(int x, int y, const char* text, int size)
+int oledStringWidth(const char *text)
+{
+	return oledPartialStringWidth(text, -1);
+}
+
+void oledDrawPartialStringSize(int x, int y, const char* text, int size, int num)
 {
 	if (!text) return;
 	int l = 0;
-	for (; *text; text++) {
+	for (; *text && num; text++, num--) {
 		char c = oledConvertChar(*text);
 		if (c) {
 			oledDrawChar(x + l, y, c, size);
@@ -294,10 +300,66 @@ void oledDrawStringSize(int x, int y, const char* text, int size)
 	}
 }
 
+void oledDrawStringSize(int x, int y, const char* text, int size)
+{
+	oledDrawPartialStringSize(x, y, text, size, -1);
+}
+
+void oledDrawPartialString(int x, int y, const char* text, int num)
+{
+	oledDrawPartialStringSize(x, y, text, 1, num);
+}
+
+void oledDrawStringCenterX(int x, int y, const char* text)
+{
+	x -= oledStringWidth(text) / 2;
+	oledDrawString(x, y, text);
+}
+
 void oledDrawStringCenter(int y, const char* text)
 {
-	int x = ( OLED_WIDTH - oledStringWidth(text) ) / 2;
-	oledDrawString(x, y, text);
+	oledDrawStringCenterX(OLED_WIDTH / 2, y, text);
+}
+
+void oledDrawStringCenterMultiline(int y, const char* text)
+{
+	const int CenterX = OLED_WIDTH / 2;
+	const int MaxWidth = OLED_WIDTH - 2;
+	const char* end = text + strlen(text);
+	
+	for (const char* str = text; str < end;)
+	{
+		int lo = 1;
+		int hi = strlen(str);
+		int len = lo;
+		for (;;)
+		{
+			if (lo > hi)
+				break;
+			int mid = (lo + hi) / 2;
+			int width = oledPartialStringWidth(str, mid);
+			if (width < MaxWidth)
+			{
+				len = mid;
+				lo = mid + 1;
+			}
+			else if (width > MaxWidth)
+			{
+				if (mid == len + 1)
+					break;
+				else
+					hi = mid - 1;
+			}
+			else
+			{
+				len = mid;
+				break;
+			}
+		}
+		oledDrawPartialString(CenterX - oledPartialStringWidth(str, len) / 2, y, str, len);
+		str += len;
+		y += FONT_HEIGHT + 1;
+	}
 }
 
 void oledDrawStringRight(int x, int y, const char* text)

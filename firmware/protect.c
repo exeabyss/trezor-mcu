@@ -29,6 +29,7 @@
 #include "util.h"
 #include "debug.h"
 #include "gettext.h"
+#include "rng.h"
 
 #define MAX_WRONG_PINS 15
 
@@ -232,39 +233,252 @@ bool protectChangePin(void)
 	}
 }
 
+void buttonCheckRepeat(bool *yes, bool *no, bool *confirm)
+{
+	*yes = false;
+	*no = false;
+	*confirm = false;
+
+	const int Threshold0 = 20;
+	const int Thresholds[] = { Threshold0, 80, 20 };
+	const int MaxThresholdLevel = sizeof(Thresholds)/sizeof(Thresholds[0]) - 1;
+
+	static int yesthreshold = Threshold0;
+	static int nothreshold = Threshold0;
+
+	static int yeslevel = 0;
+	static int nolevel = 0;
+
+	static bool both = false;
+
+	usbSleep(5);
+	buttonUpdate();
+	
+	if (both)
+	{
+		if (!button.YesDown && !button.NoDown)
+		{
+			both = false;
+			yeslevel = 0;
+			nolevel = 0;
+			yesthreshold = Thresholds[0];
+			nothreshold = Thresholds[0];
+		}
+	}
+	else if ((button.YesDown && button.NoDown)
+		|| (button.YesUp && button.NoDown)
+		|| (button.YesDown && button.NoUp)
+		|| (button.YesUp && button.NoUp))
+	{
+		if (!yeslevel && !nolevel)
+		{
+			both = true;
+			*confirm = true;
+		}
+	}
+	else
+	{
+		if (button.YesUp)
+		{
+			if (!yeslevel)
+				*yes = true;
+			yeslevel = 0;
+			yesthreshold = Thresholds[0];
+		}
+		else if (button.YesDown >= yesthreshold)
+		{
+			if (yeslevel < MaxThresholdLevel)
+				yeslevel++;
+			yesthreshold += Thresholds[yeslevel];
+			*yes = true;
+		}
+		if (button.NoUp)
+		{
+			if (!nolevel)
+				*no = true;
+			nolevel = 0;
+			nothreshold = Thresholds[0];
+		}
+		else if (button.NoDown >= nothreshold)
+		{
+			if (nolevel < MaxThresholdLevel)
+				nolevel++;
+			nothreshold += Thresholds[nolevel];
+			*no = true;
+		}
+	}
+}
+
 bool protectPassphrase(void)
 {
+	static bool passphraseCached = false;
+	static char CONFIDENTIAL passphrase[51];
+
 	if (!storage.has_passphrase_protection || !storage.passphrase_protection || session_isPassphraseCached()) {
 		return true;
 	}
+	
+	if (passphraseCached)
+	{
+		session_cachePassphrase(passphrase);
+		return true;
+	}
 
-	PassphraseRequest resp;
-	memset(&resp, 0, sizeof(PassphraseRequest));
-	usbTiny(1);
-	msg_write(MessageType_MessageType_PassphraseRequest, &resp);
+	memset(passphrase, 0, 51);
+	buttonUpdate();
 
-	layoutDialogSwipe(&bmp_icon_info, NULL, NULL, NULL, _("Please enter your"), _("passphrase using"), _("the computer's"), _("keyboard."), NULL, NULL);
+	#define Backspace "\x08"
+	#define Space "\x09"
+	#define Done "\x0a\x44\x4f\x4e\x45"
+	#define Back "\x0b\x42\x41\x43\x4b"
 
-	bool result;
-	for (;;) {
-		usbPoll();
-		if (msg_tiny_id == MessageType_MessageType_PassphraseAck) {
-			msg_tiny_id = 0xFFFF;
-			PassphraseAck *ppa = (PassphraseAck *)msg_tiny;
-			session_cachePassphrase(ppa->passphrase);
-			result = true;
-			break;
-		}
-		if (msg_tiny_id == MessageType_MessageType_Cancel || msg_tiny_id == MessageType_MessageType_Initialize) {
-			if (msg_tiny_id == MessageType_MessageType_Initialize) {
-				protectAbortedByInitialize = true;
+	const char MainEntries[14][12] = {
+		"abcdefghi",
+		"jklmnopqr",
+		"stuvwxyz\x09",
+		"ABCDEFGHI",
+		"JKLMNOPQR",
+		"STUVWXYZ\x09",
+		"1234567890",
+		"!@#$\x25^&*()",
+		"`-=[]\\;',./",
+		"~_+{}|:\"<>?",
+		Backspace,
+		Done,
+		"",
+		""
+	};
+	const char SubEntries[10][14][12] = {
+		{ "a", "b", "c", "d", "e", "f", "g", "h", "i", Backspace, Back, Done, "", "" },
+		{ "j", "k", "l", "m", "n", "o", "p", "q", "r", Backspace, Back, Done, "", "" },
+		{ "s", "t", "u", "v", "w", "x", "y", "z", Space, Backspace, Back, Done, "", "" },
+		{ "A", "B", "C", "D", "E", "F", "G", "H", "I", Backspace, Back, Done, "", "" },
+		{ "J", "K", "L", "M", "N", "O", "P", "Q", "R", Backspace, Back, Done, "", "" },
+		{ "S", "T", "U", "V", "W", "X", "Y", "Z", Space, Backspace, Back, Done, "", "" },
+		{ "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", Backspace, Back, Done, "" },
+		{ "!", "@", "#", "$", "\x25", "^", "&", "*", "(", ")", Backspace, Back, Done, "" },
+		{ "`", "-", "=", "[", "]", "\\", ";", "'", ",", ".", "/", Backspace, Back, Done },
+		{ "~", "_", "+", "{", "}", "|", ":", "\"", "<", ">", "?", Backspace, Back, Done }
+	};
+
+	const int NumMain = 10;
+
+	int nums[NumMain];
+	for (int i = 0; i < NumMain; i++)
+	{
+		int j;
+		for (j = 0; j < 14 && SubEntries[i][j] && SubEntries[i][j][0]; j++);
+		nums[i] = j;
+	}
+
+	int passphrasecharindex = 0;
+	int level = 0;
+	int mainentryindex = random32() % NumMain;
+	int subentryindex = 0;
+
+	layoutScroll(passphrase, 12, 3, mainentryindex, MainEntries, 0);
+
+	for (;;)
+	{
+		bool yes, no, confirm;
+		buttonCheckRepeat(&yes, &no, &confirm);
+
+		int num;
+		if (level)
+		{
+			num = nums[mainentryindex];
+
+			if (confirm)
+			{
+				if (SubEntries[mainentryindex][subentryindex][0] == 0x08) // Backspace
+				{
+					if (passphrasecharindex > 0)
+					{
+						--passphrasecharindex;
+						passphrase[passphrasecharindex] = 0;
+					}
+				}
+				else if (SubEntries[mainentryindex][subentryindex][0] == 0x0a) // Done
+				{
+					for (int i = 0; i < 51 && passphrase[i]; ++i)
+						if (passphrase[i] == 0x09) // Space
+							passphrase[i] = ' ';
+					session_cachePassphrase(passphrase);
+					passphraseCached = true;
+					break;
+				}
+				else if (SubEntries[mainentryindex][subentryindex][0] == 0x0b) // Back
+				{
+					level = 0;
+					mainentryindex = random32() % NumMain;
+					continue;
+				}
+				else
+				{
+					if (passphrasecharindex < 50)
+					{
+						passphrase[passphrasecharindex] = SubEntries[mainentryindex][subentryindex][0];
+						++passphrasecharindex;
+					}
+				}
+
+				subentryindex = random32() % num;
 			}
-			msg_tiny_id = 0xFFFF;
-			result = false;
-			break;
+			else
+			{
+				if (yes)
+					subentryindex = (subentryindex + 1) % num;
+				if (no)
+					subentryindex = (subentryindex - 1 + num) % num;
+			}
+
+			layoutScroll(passphrase, num, 5, subentryindex, SubEntries[mainentryindex], 4);
+		}
+		else
+		{
+			num = 12;
+
+			if (confirm)
+			{
+				if (MainEntries[mainentryindex][0] == 0x08) // Backspace
+				{
+					if (passphrasecharindex > 0)
+					{
+						--passphrasecharindex;
+						passphrase[passphrasecharindex] = 0;
+					}
+				}
+				else if (MainEntries[mainentryindex][0] == 0x0a) // Done
+				{
+					for (int i = 0; i < 51 && passphrase[i]; ++i)
+						if (passphrase[i] == 0x09) // Space
+							passphrase[i] = ' ';
+					session_cachePassphrase(passphrase);
+					passphraseCached = true;
+					break;
+				}
+				else
+				{
+					level = 1;
+					subentryindex = random32() % nums[mainentryindex];
+					continue;
+				}
+
+				mainentryindex = random32() % NumMain;
+			}
+			else
+			{
+				if (yes)
+					mainentryindex = (mainentryindex + 1) % num;
+				if (no)
+					mainentryindex = (mainentryindex - 1 + num) % num;
+			}
+
+			layoutScroll(passphrase, num, 3, mainentryindex, MainEntries, 0);
 		}
 	}
-	usbTiny(0);
+
 	layoutHome();
-	return result;
+
+	return passphraseCached;
 }

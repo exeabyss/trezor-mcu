@@ -47,6 +47,8 @@ int oledStringWidth(const char *text);
 #define oledDrawStringDouble(x, y, text) oledDrawStringSize((x),  (y), (text), 2)
 void oledDrawStringSize(int x, int y, const char* text, int size);
 void oledDrawStringCenter(int y, const char* text);
+void oledDrawStringCenterX(int x, int y, const char* text);
+void oledDrawStringCenterMultiline(int y, const char* text);
 void oledDrawStringRight(int x, int y, const char* text);
 void oledDrawBitmap(int x, int y, const BITMAP *bmp);
 void oledInvert(int x1, int y1, int x2, int y2);
