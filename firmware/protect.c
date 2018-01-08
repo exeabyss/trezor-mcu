@@ -327,12 +327,16 @@ bool protectPassphrase(void)
 	memset(passphrase, 0, 51);
 	buttonUpdate();
 
+	#define NumMain 12
+	#define NumSub 10
+	#define NumPerSub 14
+	
 	#define Backspace "\x08"
 	#define Space "\x09"
 	#define Done "\x0a\x44\x4f\x4e\x45"
 	#define Back "\x0b\x42\x41\x43\x4b"
 
-	const char MainEntries[14][12] = {
+	const char MainEntries[NumMain][12] = {
 		"abcdefghi",
 		"jklmnopqr",
 		"stuvwxyz\x09",
@@ -345,10 +349,8 @@ bool protectPassphrase(void)
 		"~_+{}|:\"<>?",
 		Backspace,
 		Done,
-		"",
-		""
 	};
-	const char SubEntries[10][14][12] = {
+	const char SubEntries[NumSub][NumPerSub][12] = {
 		{ "a", "b", "c", "d", "e", "f", "g", "h", "i", Backspace, Back, Done, "", "" },
 		{ "j", "k", "l", "m", "n", "o", "p", "q", "r", Backspace, Back, Done, "", "" },
 		{ "s", "t", "u", "v", "w", "x", "y", "z", Space, Backspace, Back, Done, "", "" },
@@ -361,13 +363,11 @@ bool protectPassphrase(void)
 		{ "~", "_", "+", "{", "}", "|", ":", "\"", "<", ">", "?", Backspace, Back, Done }
 	};
 
-	const int NumMain = 10;
-
-	int nums[NumMain];
-	for (int i = 0; i < NumMain; i++)
+	int nums[NumSub];
+	for (int i = 0; i < NumSub; i++)
 	{
 		int j;
-		for (j = 0; j < 14 && SubEntries[i][j] && SubEntries[i][j][0]; j++);
+		for (j = 0; j < NumPerSub && SubEntries[i][j] && SubEntries[i][j][0]; j++);
 		nums[i] = j;
 	}
 
@@ -376,7 +376,7 @@ bool protectPassphrase(void)
 	int mainentryindex = random32() % NumMain;
 	int subentryindex = 0;
 
-	layoutScroll(passphrase, 12, 3, mainentryindex, MainEntries, 0);
+	layoutScroll(passphrase, NumMain, 3, mainentryindex, MainEntries, 0);
 
 	for (;;)
 	{
@@ -436,7 +436,7 @@ bool protectPassphrase(void)
 		}
 		else
 		{
-			num = 12;
+			num = NumMain;
 
 			if (confirm)
 			{
@@ -464,7 +464,7 @@ bool protectPassphrase(void)
 					continue;
 				}
 
-				mainentryindex = random32() % NumMain;
+				mainentryindex = random32() % num;
 			}
 			else
 			{

@@ -83,7 +83,7 @@ void layoutProgressSwipe(const char *desc, int permil)
 	layoutProgress(desc, permil);
 }
 
-void layoutScroll(const char *desc, int num_total, int num_screen, int current, const char entries[14][12], int padding)
+void layoutScroll(const char *desc, int num_total, int num_screen, int current, const char entries[][12], int padding)
 {
 	if (num_total < 0 || num_total > 14 || num_screen < 0 || num_screen > 5 || num_screen / 2 * 2 == num_screen || current < 0 || current > num_total - 1)
 		return;
