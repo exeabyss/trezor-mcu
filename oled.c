@@ -323,10 +323,50 @@ void oledDrawStringCenter(int y, const char* text)
 
 void oledDrawStringCenterMultiline(int y, const char* text)
 {
+	if (!text || !*text) return;
+
 	const int CenterX = OLED_WIDTH / 2;
 	const int MaxWidth = OLED_WIDTH - 2;
 	const char* end = text + strlen(text);
 	
+	int lines = 0;
+	for (const char* str = text; str < end;)
+	{
+		int lo = 1;
+		int hi = strlen(str);
+		int len = lo;
+		for (;;)
+		{
+			if (lo > hi)
+				break;
+			int mid = (lo + hi) / 2;
+			int width = oledPartialStringWidth(str, mid);
+			if (width < MaxWidth)
+			{
+				len = mid;
+				lo = mid + 1;
+			}
+			else if (width > MaxWidth)
+			{
+				if (mid == len + 1)
+					break;
+				else
+					hi = mid - 1;
+			}
+			else
+			{
+				len = mid;
+				break;
+			}
+		}
+		str += len;
+		lines++;
+	}
+
+	const int Height = FONT_HEIGHT + 1;
+
+	y -= Height * lines / 2;
+
 	for (const char* str = text; str < end;)
 	{
 		int lo = 1;
@@ -358,7 +398,7 @@ void oledDrawStringCenterMultiline(int y, const char* text)
 		}
 		oledDrawPartialString(CenterX - oledPartialStringWidth(str, len) / 2, y, str, len);
 		str += len;
-		y += FONT_HEIGHT + 1;
+		y += Height;
 	}
 }
 

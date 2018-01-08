@@ -107,7 +107,7 @@ void layoutScroll(const char *desc, int num_total, int num_screen, int current, 
 	oledInvert(CenterX - halfgap, Y - 2, CenterX + halfgap - 1, Y + FONT_HEIGHT + 1);
 
 	if (desc)
-		oledDrawStringCenterMultiline(OLED_HEIGHT - FONT_HEIGHT * 4 - 2, desc);
+		oledDrawStringCenterMultiline(OLED_HEIGHT - FONT_HEIGHT * 2 - 2, desc);
 
 	oledRefresh();
 }
