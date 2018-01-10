@@ -309,31 +309,15 @@ void buttonCheckRepeat(bool *yes, bool *no, bool *confirm)
 	}
 }
 
-bool protectPassphrase(void)
+void inputPassphrase(char *passphrase)
 {
-	static bool passphraseCached = false;
-	static char CONFIDENTIAL passphrase[51];
-
-	if (!storage.has_passphrase_protection || !storage.passphrase_protection || session_isPassphraseCached()) {
-		return true;
-	}
-	
-	if (passphraseCached)
-	{
-		session_cachePassphrase(passphrase);
-		return true;
-	}
-
-	memset(passphrase, 0, 51);
-	buttonUpdate();
-
 	#define NumMain 12
 	#define NumSub 10
 	#define NumPerSub 14
 	
 	#define Backspace "\x08"
 	#define Space "\x09"
-	#define Done "\x0a\x44\x4f\x4e\x45"
+	#define Done "\x06"
 	#define Back "\x0b\x42\x41\x43\x4b"
 
 	const char MainEntries[NumMain][12] = {
@@ -371,12 +355,14 @@ bool protectPassphrase(void)
 		nums[i] = j;
 	}
 
-	int passphrasecharindex = 0;
+	int passphrasecharindex = strlen(passphrase);
 	int level = 0;
 	int mainentryindex = random32() % NumMain;
 	int subentryindex = 0;
 
 	layoutScroll(passphrase, NumMain, 3, mainentryindex, MainEntries, 0);
+
+	buttonUpdate();
 
 	for (;;)
 	{
@@ -398,13 +384,8 @@ bool protectPassphrase(void)
 						passphrase[passphrasecharindex] = 0;
 					}
 				}
-				else if (SubEntries[mainentryindex][subentryindex][0] == 0x0a) // Done
+				else if (SubEntries[mainentryindex][subentryindex][0] == 0x06) // Done
 				{
-					for (int i = 0; i < 51 && passphrase[i]; ++i)
-						if (passphrase[i] == 0x09) // Space
-							passphrase[i] = ' ';
-					session_cachePassphrase(passphrase);
-					passphraseCached = true;
 					break;
 				}
 				else if (SubEntries[mainentryindex][subentryindex][0] == 0x0b) // Back
@@ -448,13 +429,8 @@ bool protectPassphrase(void)
 						passphrase[passphrasecharindex] = 0;
 					}
 				}
-				else if (MainEntries[mainentryindex][0] == 0x0a) // Done
+				else if (MainEntries[mainentryindex][0] == 0x06) // Done
 				{
-					for (int i = 0; i < 51 && passphrase[i]; ++i)
-						if (passphrase[i] == 0x09) // Space
-							passphrase[i] = ' ';
-					session_cachePassphrase(passphrase);
-					passphraseCached = true;
 					break;
 				}
 				else
@@ -477,6 +453,132 @@ bool protectPassphrase(void)
 			layoutScroll(passphrase, num, 3, mainentryindex, MainEntries, 0);
 		}
 	}
+}
+
+bool checkPassphrase(const char *passphrase)
+{
+	layoutCheckPassphrase(passphrase);
+
+	buttonUpdate();
+
+	for(;;)
+	{
+		usbSleep(5);
+		buttonUpdate();
+		if (button.YesUp)
+			return true;
+		if (button.NoUp)
+			return false;
+	}
+}
+
+void waitForYesButton(void)
+{
+	buttonUpdate();
+
+	for(;;)
+	{
+		usbSleep(5);
+		buttonUpdate();
+		if (button.YesUp)
+			break;
+	}
+}
+
+bool protectPassphrase(void)
+{
+	static bool passphraseCached = false;
+	static char CONFIDENTIAL passphrase[51];
+
+	if (!storage.has_passphrase_protection || !storage.passphrase_protection || session_isPassphraseCached()) {
+		return true;
+	}
+	
+	if (passphraseCached)
+	{
+		session_cachePassphrase(passphrase);
+		return true;
+	}
+
+	memset(passphrase, 0, 51);
+	buttonUpdate();
+
+	layoutDialog(NULL, NULL, _("Next"), NULL, _("Select how many times"), _("you'd like to enter"), _("the passphrase."), NULL, NULL, NULL);
+	waitForYesButton();
+	layoutSwipe();
+
+	layoutDialog(NULL, _("Once"), _("Twice"), NULL, _("If you are creating a new"), _("wallet or restoring an"), _("empty one, it is advised"), _("that you select Twice."), NULL, NULL);
+	for(;;)
+	{
+		usbSleep(5);
+		buttonUpdate();
+		if (button.YesUp || button.NoUp)
+			break;
+	}
+	layoutSwipe();
+
+	bool once = button.NoUp;
+
+	for (;;)
+	{
+		layoutDialog(NULL, NULL, _("Next"), NULL, _("Enter the passphrase"), _("on the next screen."), _("- Single button: scroll."), _("- Hold: auto-scroll."), _("- Both buttons: confirm."), NULL);
+		waitForYesButton();
+		layoutSwipe();
+
+		for (;;)
+		{
+			inputPassphrase(passphrase);
+			layoutSwipe();
+
+			if (checkPassphrase(passphrase))
+				break;
+
+			oledSwipeRight();
+		}
+
+		layoutSwipe();
+
+		if (once)
+			break;
+		
+		static char CONFIDENTIAL passphrase2[51];
+
+		memset(passphrase2, 0, 51);
+
+		layoutDialog(NULL, NULL, _("Next"), NULL, _("Re-enter the passphrase."), NULL, NULL, NULL, NULL, NULL);
+		waitForYesButton();
+		layoutSwipe();
+
+		for (;;)
+		{
+			inputPassphrase(passphrase2);
+			layoutSwipe();
+
+			if (checkPassphrase(passphrase2))
+				break;
+
+			oledSwipeRight();
+		}
+
+		layoutSwipe();
+
+		if (strcmp(passphrase, passphrase2) == 0)
+			break;
+
+		layoutDialog(NULL, NULL, _("Next"), NULL, _("Passphrases do not"), _("match. Try again."), NULL, NULL, NULL, NULL);
+		waitForYesButton();
+		layoutSwipe();
+
+		memset(passphrase, 0, 51);
+		memset(passphrase2, 0, 51);
+	}
+
+	for (int i = 0; i < 51 && passphrase[i]; ++i)
+		if (passphrase[i] == 0x09) // Space
+			passphrase[i] = ' ';
+			
+	session_cachePassphrase(passphrase);
+	passphraseCached = true;
 
 	layoutHome();
 

@@ -85,10 +85,12 @@ void layoutProgressSwipe(const char *desc, int permil)
 
 void layoutScroll(const char *desc, int num_total, int num_screen, int current, const char entries[][12], int padding)
 {
-	if (num_total < 0 || num_total > 14 || num_screen < 0 || num_screen > 5 || num_screen / 2 * 2 == num_screen || current < 0 || current > num_total - 1)
-		return;
+	layoutLast = layoutScroll;
 
 	oledClear();
+
+	if (num_total < 0 || num_total > 14 || num_screen < 0 || num_screen > 5 || num_screen / 2 * 2 == num_screen || current < 0 || current > num_total - 1)
+		return;
 	
 	const int CenterX = OLED_WIDTH / 2;
 	const int Y = OLED_HEIGHT / 4 - FONT_HEIGHT / 2;
@@ -151,6 +153,31 @@ void layoutHome(void)
 
 	// Reset lock screen timeout
 	system_millis_lock_start = system_millis;
+}
+
+void layoutCheckPassphrase(const char *passphrase)
+{
+	layoutLast = layoutCheckPassphrase;
+	layoutSwipe();
+
+	oledClear();
+	oledDrawString(0, 0 * 9, "Check the passphrase:");
+
+	oledDrawStringCenterMultiline(OLED_HEIGHT / 2 - 2, passphrase);
+
+	const char *btnNo = "Edit";
+	oledDrawString(1, OLED_HEIGHT - 8, "\x15");
+	oledDrawString(fontCharWidth('\x15') + 3, OLED_HEIGHT - 8, btnNo);
+	oledInvert(0, OLED_HEIGHT - 9, fontCharWidth('\x15') + oledStringWidth(btnNo) + 2, OLED_HEIGHT - 1);
+
+	const char *btnYes = "Done";
+	oledDrawString(OLED_WIDTH - fontCharWidth('\x06') - 1, OLED_HEIGHT - 8, "\x06");
+	oledDrawString(OLED_WIDTH - oledStringWidth(btnYes) - fontCharWidth('\x06') - 3, OLED_HEIGHT - 8, btnYes);
+	oledInvert(OLED_WIDTH - oledStringWidth(btnYes) - fontCharWidth('\x06') - 4, OLED_HEIGHT - 9, OLED_WIDTH - 1, OLED_HEIGHT - 1);
+
+	oledHLine(OLED_HEIGHT - 13);
+
+	oledRefresh();
 }
 
 void layoutConfirmOutput(const CoinInfo *coin, const TxOutputType *out)
