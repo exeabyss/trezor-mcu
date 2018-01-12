@@ -487,19 +487,12 @@ void waitForYesButton(void)
 
 bool protectPassphrase(void)
 {
-	static bool passphraseCached = false;
 	static char CONFIDENTIAL passphrase[51];
 
 	if (!storage.has_passphrase_protection || !storage.passphrase_protection || session_isPassphraseCached()) {
 		return true;
 	}
 	
-	if (passphraseCached)
-	{
-		session_cachePassphrase(passphrase);
-		return true;
-	}
-
 	memset(passphrase, 0, 51);
 	buttonUpdate();
 
@@ -578,9 +571,8 @@ bool protectPassphrase(void)
 			passphrase[i] = ' ';
 			
 	session_cachePassphrase(passphrase);
-	passphraseCached = true;
 
 	layoutHome();
 
-	return passphraseCached;
+	return true;
 }
