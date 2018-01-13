@@ -4,7 +4,7 @@ const uint8_t * const font_data[256] = {
 	/* 0x00 _ */ (uint8_t *)"\x01\x00",
 	/* 0x01 _ */ (uint8_t *)"\x01\x00",
 	/* 0x02 _ */ (uint8_t *)"\x01\x00",
-	/* 0x03 _ */ (uint8_t *)"\x01\x00",
+	/* 0x03 _ */ (uint8_t *)"\x01\xff", // Caret
 	/* 0x04 _ */ (uint8_t *)"\x01\x00",
 	/* 0x05 _ */ (uint8_t *)"\x01\x00",
 	/* 0x06 _ */ (uint8_t *)"\x07\x18\x1c\x0e\x18\x30\x40\x80",

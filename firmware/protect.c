@@ -364,7 +364,10 @@ void inputPassphrase(char *passphrase)
 
 	buttonUpdate();
 
-	for (;;)
+	const int CaretShowThreshold = 80;
+	const int CaretShowCycle = CaretShowThreshold * 2;
+
+	for (int caret = 0; ; caret = (caret + 1) % CaretShowCycle)
 	{
 		bool yes, no, confirm;
 		buttonCheckRepeat(&yes, &no, &confirm);
@@ -414,6 +417,9 @@ void inputPassphrase(char *passphrase)
 			}
 
 			layoutScroll(passphrase, num, 5, subentryindex, SubEntries[mainentryindex], 4);
+			
+			if (caret < CaretShowThreshold)
+				oledDrawCaret();
 		}
 		else
 		{
@@ -451,6 +457,9 @@ void inputPassphrase(char *passphrase)
 			}
 
 			layoutScroll(passphrase, num, 3, mainentryindex, MainEntries, 0);
+			
+			if (caret < CaretShowThreshold)
+				oledDrawCaret();
 		}
 	}
 }

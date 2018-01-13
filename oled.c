@@ -65,6 +65,9 @@
 
 static uint8_t _oledbuffer[OLED_BUFSIZE];
 static bool is_debug_link = 0;
+static int caret_x = 0;
+static int caret_y = 0;
+static int caret_zoom = 1;
 
 /*
  * macros to convert coordinate to bit position
@@ -233,7 +236,7 @@ void oledSetBuffer(uint8_t *buf)
 	memcpy(_oledbuffer, buf, sizeof(_oledbuffer));
 }
 
-void oledDrawChar(int x, int y, char c, int zoom)
+void oledDrawCharUpdateCaret(int x, int y, char c, int zoom, bool update_caret)
 {
 	if (x >= OLED_WIDTH || y >= OLED_HEIGHT || y <= -FONT_HEIGHT) {
 		return;
@@ -257,6 +260,24 @@ void oledDrawChar(int x, int y, char c, int zoom)
 			}
 		}
 	}
+
+	if (update_caret)
+	{
+		caret_x = x + (char_width + 1) * zoom;
+		caret_y = y;
+		caret_zoom = zoom;
+	}
+}
+
+void oledDrawChar(int x, int y, char c, int zoom)
+{
+	oledDrawCharUpdateCaret(x, y, c, zoom, true);
+}
+
+void oledDrawCaret(void)
+{
+	oledDrawCharUpdateCaret(caret_x, caret_y, '\x03', caret_zoom, false);
+	oledRefresh();
 }
 
 char oledConvertChar(const char c) {
@@ -295,7 +316,7 @@ void oledDrawPartialStringSize(int x, int y, const char* text, int size, int num
 		char c = oledConvertChar(*text);
 		if (c) {
 			oledDrawChar(x + l, y, c, size);
-			l += size * (fontCharWidth(c) + 1);
+			l += (fontCharWidth(c) + 1) * size;
 		}
 	}
 }
@@ -323,9 +344,17 @@ void oledDrawStringCenter(int y, const char* text)
 
 void oledDrawStringCenterMultiline(int y, const char* text)
 {
-	if (!text || !*text) return;
-
 	const int CenterX = OLED_WIDTH / 2;
+	const int Height = FONT_HEIGHT + 1;
+
+	if (!text || !*text)
+	{
+		caret_x = CenterX;
+		caret_y = y - Height / 2;
+		caret_zoom = 1;
+		return;
+	}
+
 	const int MaxWidth = OLED_WIDTH - 2;
 	const char* end = text + strlen(text);
 	
@@ -367,8 +396,6 @@ void oledDrawStringCenterMultiline(int y, const char* text)
 		if (lines >= 8)
 			break;
 	}
-
-	const int Height = FONT_HEIGHT + 1;
 
 	y -= Height * lines / 2;
 
