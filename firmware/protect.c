@@ -309,17 +309,93 @@ void buttonCheckRepeat(bool *yes, bool *no, bool *confirm)
 	}
 }
 
+#define Backspace "\x08"
+#define Space "\x09"
+#define Done "\x06"
+#define Back "\x0b\x42\x41\x43\x4b"
+
+#define CaretShowThreshold 80
+#define CaretCycle (CaretShowThreshold * 2)
+
+#define InputDone -2
+#define InputBack -1
+
+void confirmedDoNothing(char *passphrase, int *passphrasecharindex, char ch)
+{
+	UNUSED(passphrase);
+	UNUSED(passphrasecharindex);
+	UNUSED(ch);
+}
+
+void confirmedAcceptChar(char *passphrase, int *passphrasecharindex, char ch)
+{
+	if (*passphrasecharindex < 50)
+	{
+		passphrase[*passphrasecharindex] = ch;
+		++(*passphrasecharindex);
+	}
+}
+
+int inputPassphraseNavigation(char *passphrase, int *passphrasecharindex, const char entries[][12], int numtotal, int numscreen, int padding, int numexcluded, void (*confirmed)(char *, int *, char), int *caret)
+{
+	int numrandom = numtotal - numexcluded;
+	int entryindex = random32() % numrandom;
+
+	for (; ; *caret = (*caret + 1) % CaretCycle)
+	{
+		bool yes, no, confirm;
+		buttonCheckRepeat(&yes, &no, &confirm);
+
+		if (confirm)
+		{
+			if (entries[entryindex][0] == Backspace[0])
+			{
+				if (*passphrasecharindex > 0)
+				{
+					--(*passphrasecharindex);
+					passphrase[*passphrasecharindex] = 0;
+				}
+				if (*passphrasecharindex == 49)
+					return entryindex;
+			}
+			else if (entries[entryindex][0] == Done[0])
+			{
+				return InputDone;
+			}
+			else if (entries[entryindex][0] == Back[0])
+			{
+				return InputBack;
+			}
+			else
+			{
+				if (confirmed)
+					(*confirmed)(passphrase, passphrasecharindex, entries[entryindex][0]);
+				return entryindex;
+			}
+
+			entryindex = random32() % numrandom;
+		}
+		else
+		{
+			if (yes)
+				entryindex = (entryindex + 1) % numtotal;
+			if (no)
+				entryindex = (entryindex - 1 + numtotal) % numtotal;
+		}
+
+		layoutScroll(passphrase, numtotal, numscreen, entryindex, entries, padding);
+		if (*caret < CaretShowThreshold)
+			oledDrawCaret();
+	}
+}
+
 void inputPassphrase(char *passphrase)
 {
 	#define NumMain 12
 	#define NumSub 10
 	#define NumPerSub 14
+	#define NumCapped 4
 	
-	#define Backspace "\x08"
-	#define Space "\x09"
-	#define Done "\x06"
-	#define Back "\x0b\x42\x41\x43\x4b"
-
 	const char MainEntries[NumMain][12] = {
 		"abcdefghi",
 		"jklmnopqr",
@@ -335,16 +411,22 @@ void inputPassphrase(char *passphrase)
 		Done,
 	};
 	const char SubEntries[NumSub][NumPerSub][12] = {
-		{ "a", "b", "c", "d", "e", "f", "g", "h", "i", Backspace, Back, Done, "", "" },
-		{ "j", "k", "l", "m", "n", "o", "p", "q", "r", Backspace, Back, Done, "", "" },
-		{ "s", "t", "u", "v", "w", "x", "y", "z", Space, Backspace, Back, Done, "", "" },
-		{ "A", "B", "C", "D", "E", "F", "G", "H", "I", Backspace, Back, Done, "", "" },
-		{ "J", "K", "L", "M", "N", "O", "P", "Q", "R", Backspace, Back, Done, "", "" },
-		{ "S", "T", "U", "V", "W", "X", "Y", "Z", Space, Backspace, Back, Done, "", "" },
-		{ "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", Backspace, Back, Done, "" },
-		{ "!", "@", "#", "$", "\x25", "^", "&", "*", "(", ")", Backspace, Back, Done, "" },
-		{ "`", "-", "=", "[", "]", "\\", ";", "'", ",", ".", "/", Backspace, Back, Done },
-		{ "~", "_", "+", "{", "}", "|", ":", "\"", "<", ">", "?", Backspace, Back, Done }
+		{ "a", "b", "c", "d", "e", "f", "g", "h", "i", Backspace, Done, Back, "", "" },
+		{ "j", "k", "l", "m", "n", "o", "p", "q", "r", Backspace, Done, Back, "", "" },
+		{ "s", "t", "u", "v", "w", "x", "y", "z", Space, Backspace, Done, Back, "", "" },
+		{ "A", "B", "C", "D", "E", "F", "G", "H", "I", Backspace, Done, Back, "", "" },
+		{ "J", "K", "L", "M", "N", "O", "P", "Q", "R", Backspace, Done, Back, "", "" },
+		{ "S", "T", "U", "V", "W", "X", "Y", "Z", Space, Backspace, Done, Back, "", "" },
+		{ "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", Backspace, Done, Back, "" },
+		{ "!", "@", "#", "$", "\x25", "^", "&", "*", "(", ")", Backspace, Done, Back, "" },
+		{ "`", "-", "=", "[", "]", "\\", ";", "'", ",", ".", "/", Backspace, Done, Back },
+		{ "~", "_", "+", "{", "}", "|", ":", "\"", "<", ">", "?", Backspace, Done, Back }
+	};
+	const char CappedEntries[NumCapped][12] = {
+		Backspace,
+		Done,
+		Backspace,
+		Done,
 	};
 
 	int nums[NumSub];
@@ -355,111 +437,30 @@ void inputPassphrase(char *passphrase)
 		nums[i] = j;
 	}
 
-	int passphrasecharindex = strlen(passphrase);
-	int level = 0;
-	int mainentryindex = random32() % NumMain;
-	int subentryindex = 0;
-
-	layoutScroll(passphrase, NumMain, 3, mainentryindex, MainEntries, 0);
-
 	buttonUpdate();
 
-	const int CaretShowThreshold = 80;
-	const int CaretShowCycle = CaretShowThreshold * 2;
+	int passphrasecharindex = strlen(passphrase);
+	int caret = 0;
 
-	for (int caret = 0; ; caret = (caret + 1) % CaretShowCycle)
+	if (passphrasecharindex >= 50 && InputDone == inputPassphraseNavigation(passphrase, &passphrasecharindex, CappedEntries, NumCapped, 3, 6, 0, confirmedDoNothing, &caret))
+		return;
+
+	int mainentryindex, subentryindex;
+	for (;;)
 	{
-		bool yes, no, confirm;
-		buttonCheckRepeat(&yes, &no, &confirm);
-
-		int num;
-		if (level)
+		mainentryindex = inputPassphraseNavigation(passphrase, &passphrasecharindex, MainEntries, NumMain, 3, 0, 2, confirmedDoNothing, &caret);
+		if (mainentryindex == InputDone)
+			return;
+		mainentryindex = mainentryindex < 0 ? 0 : mainentryindex; // for the warning
+		for (;;)
 		{
-			num = nums[mainentryindex];
-
-			if (confirm)
-			{
-				if (SubEntries[mainentryindex][subentryindex][0] == 0x08) // Backspace
-				{
-					if (passphrasecharindex > 0)
-					{
-						--passphrasecharindex;
-						passphrase[passphrasecharindex] = 0;
-					}
-				}
-				else if (SubEntries[mainentryindex][subentryindex][0] == 0x06) // Done
-				{
-					break;
-				}
-				else if (SubEntries[mainentryindex][subentryindex][0] == 0x0b) // Back
-				{
-					level = 0;
-					mainentryindex = random32() % NumMain;
-					continue;
-				}
-				else
-				{
-					if (passphrasecharindex < 50)
-					{
-						passphrase[passphrasecharindex] = SubEntries[mainentryindex][subentryindex][0];
-						++passphrasecharindex;
-					}
-				}
-
-				subentryindex = random32() % num;
-			}
-			else
-			{
-				if (yes)
-					subentryindex = (subentryindex + 1) % num;
-				if (no)
-					subentryindex = (subentryindex - 1 + num) % num;
-			}
-
-			layoutScroll(passphrase, num, 5, subentryindex, SubEntries[mainentryindex], 4);
-			
-			if (caret < CaretShowThreshold)
-				oledDrawCaret();
-		}
-		else
-		{
-			num = NumMain;
-
-			if (confirm)
-			{
-				if (MainEntries[mainentryindex][0] == 0x08) // Backspace
-				{
-					if (passphrasecharindex > 0)
-					{
-						--passphrasecharindex;
-						passphrase[passphrasecharindex] = 0;
-					}
-				}
-				else if (MainEntries[mainentryindex][0] == 0x06) // Done
-				{
-					break;
-				}
-				else
-				{
-					level = 1;
-					subentryindex = random32() % nums[mainentryindex];
-					continue;
-				}
-
-				mainentryindex = random32() % num;
-			}
-			else
-			{
-				if (yes)
-					mainentryindex = (mainentryindex + 1) % num;
-				if (no)
-					mainentryindex = (mainentryindex - 1 + num) % num;
-			}
-
-			layoutScroll(passphrase, num, 3, mainentryindex, MainEntries, 0);
-			
-			if (caret < CaretShowThreshold)
-				oledDrawCaret();
+			subentryindex = inputPassphraseNavigation(passphrase, &passphrasecharindex, SubEntries[mainentryindex], nums[mainentryindex], 5, 4, 3, confirmedAcceptChar, &caret);
+			if (subentryindex == InputDone)
+				return;
+			if (subentryindex == InputBack)
+				break;
+			if (passphrasecharindex >= 50 && InputDone == inputPassphraseNavigation(passphrase, &passphrasecharindex, CappedEntries, NumCapped, 3, 6, 0, confirmedDoNothing, &caret))
+				return;
 		}
 	}
 }
@@ -505,11 +506,11 @@ bool protectPassphrase(void)
 	memset(passphrase, 0, 51);
 	buttonUpdate();
 
-	layoutDialog(NULL, NULL, _("Next"), NULL, _("Select how many times"), _("you'd like to enter"), _("the passphrase."), NULL, NULL, NULL);
+	layoutDialog(NULL, NULL, _("Next"), NULL, _("You are about to enter"), _("the passphrase."), _("Select how many times"), _("you'd like to do it."), NULL, NULL);
 	waitForYesButton();
 	layoutSwipe();
 
-	layoutDialog(NULL, _("Once"), _("Twice"), NULL, _("If you are creating a new"), _("wallet or restoring an"), _("empty one, it is advised"), _("that you select Twice."), NULL, NULL);
+	layoutDialog(NULL, _("Once"), _("Twice"), NULL, _("If you are creating a new"), _("wallet or restoring an"), _("unused one, it is advised"), _("that you select Twice."), NULL, NULL);
 	for(;;)
 	{
 		usbSleep(5);

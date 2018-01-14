@@ -89,7 +89,7 @@ void layoutScroll(const char *desc, int num_total, int num_screen, int current, 
 
 	oledClear();
 
-	if (num_total < 0 || num_total > 14 || num_screen < 0 || num_screen > 5 || num_screen / 2 * 2 == num_screen || current < 0 || current > num_total - 1)
+	if (num_total < 0 || num_screen < 0 || num_screen > 5 || num_screen / 2 * 2 == num_screen || current < 0 || current > num_total - 1)
 		return;
 	
 	const int CenterX = OLED_WIDTH / 2;
@@ -98,7 +98,7 @@ void layoutScroll(const char *desc, int num_total, int num_screen, int current, 
 	int width = OLED_WIDTH - padding * 2;
 	int gap = width / (num_screen - 1);
 	int t = (num_screen - 1) / 2;
-	for (int i = 0; i < num_screen; ++i)
+	for (int i = 0; i < num_screen && i < num_total; ++i)
 	{
 		int x = CenterX - gap * (t - i);
 		int n = (current + i - t + num_total) % num_total;
