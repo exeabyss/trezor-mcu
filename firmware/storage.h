@@ -63,6 +63,10 @@ void storage_resetPinFails(uint32_t *pinfailptr);
 bool storage_increasePinFails(uint32_t *pinfailptr);
 uint32_t *storage_getPinFailsPtr(void);
 
+bool session_isUseOnDeviceTextInputCached(void);
+bool session_isUseOnDeviceTextInput(void);
+void session_setUseOnDeviceTextInput(bool use);
+
 uint32_t storage_nextU2FCounter(void);
 void storage_setU2FCounter(uint32_t u2fcounter);
 

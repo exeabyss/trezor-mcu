@@ -102,6 +102,9 @@ static bool sessionPinCached;
 static bool sessionPassphraseCached;
 static char CONFIDENTIAL sessionPassphrase[51];
 
+static bool sessionUseOnDeviceTextInputCached;
+static bool sessionUseOnDeviceTextInput;
+
 #define STORAGE_VERSION 8
 
 void storage_show_error(void)
@@ -229,6 +232,7 @@ void session_clear(bool clear_pin)
 	if (clear_pin) {
 		sessionPinCached = false;
 	}
+	sessionUseOnDeviceTextInputCached = false;
 }
 
 static uint32_t storage_flash_words(uint32_t addr, uint32_t *src, int nwords) {
@@ -527,6 +531,22 @@ void storage_clearPinArea(void)
 	flash_lock();
 	storage_check_flash_errors();
 	storage_u2f_offset = 0;
+}
+
+bool session_isUseOnDeviceTextInputCached(void)
+{
+	return sessionUseOnDeviceTextInputCached;
+}
+
+bool session_isUseOnDeviceTextInput(void)
+{
+	return sessionUseOnDeviceTextInput;
+}
+
+void session_setUseOnDeviceTextInput(bool use)
+{
+	sessionUseOnDeviceTextInputCached = true;
+	sessionUseOnDeviceTextInput = use;
 }
 
 // called when u2f area or pin area overflows

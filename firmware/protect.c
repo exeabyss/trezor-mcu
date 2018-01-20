@@ -35,6 +35,22 @@
 
 bool protectAbortedByInitialize = false;
 
+void requestOnDeviceTextInput(void)
+{
+	if (!session_isUseOnDeviceTextInputCached())
+	{
+		layoutDialog(&bmp_icon_question, _("Cancel"), _("Confirm"), NULL, _("Do you like to use"), _("on-device text input?"), NULL, NULL, NULL, NULL);
+		for(;;)
+		{
+			buttonUpdate();
+			if (button.YesUp || button.NoUp)
+				break;
+		}
+		layoutSwipe();
+	}
+	session_setUseOnDeviceTextInput(button.YesUp);
+}
+
 bool protectButton(ButtonRequestType type, bool confirm_only)
 {
 	ButtonRequest resp;
@@ -495,7 +511,7 @@ void waitForYesButton(void)
 	}
 }
 
-bool protectPassphrase(void)
+bool protectPassphraseDevice(void)
 {
 	static char CONFIDENTIAL passphrase[51];
 
@@ -585,4 +601,52 @@ bool protectPassphrase(void)
 	layoutHome();
 
 	return true;
+}
+
+bool protectPassphraseComputer(void)
+{
+	if (!storage.has_passphrase_protection || !storage.passphrase_protection || session_isPassphraseCached()) {
+		return true;
+	}
+
+	PassphraseRequest resp;
+	memset(&resp, 0, sizeof(PassphraseRequest));
+	usbTiny(1);
+	msg_write(MessageType_MessageType_PassphraseRequest, &resp);
+
+	layoutDialogSwipe(&bmp_icon_info, NULL, NULL, NULL, _("Please enter your"), _("passphrase using"), _("the computer's"), _("keyboard."), NULL, NULL);
+
+	bool result;
+	for (;;) {
+		usbPoll();
+		if (msg_tiny_id == MessageType_MessageType_PassphraseAck) {
+			msg_tiny_id = 0xFFFF;
+			PassphraseAck *ppa = (PassphraseAck *)msg_tiny;
+			session_cachePassphrase(ppa->passphrase);
+			result = true;
+			break;
+		}
+		if (msg_tiny_id == MessageType_MessageType_Cancel || msg_tiny_id == MessageType_MessageType_Initialize) {
+			if (msg_tiny_id == MessageType_MessageType_Initialize) {
+				protectAbortedByInitialize = true;
+			}
+			msg_tiny_id = 0xFFFF;
+			result = false;
+			break;
+		}
+	}
+	usbTiny(0);
+	layoutHome();
+	return result;
+}
+
+bool protectPassphrase(void)
+{
+	requestOnDeviceTextInput();
+	bool result;
+	if (session_isUseOnDeviceTextInput())
+		result = protectPassphraseDevice();
+	else
+		result = protectPassphraseComputer();
+	return result;
 }
