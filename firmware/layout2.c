@@ -83,7 +83,7 @@ void layoutProgressSwipe(const char *desc, int permil)
 	layoutProgress(desc, permil);
 }
 
-void layoutScroll(const char *desc, int num_total, int num_screen, int current, const char entries[][12], int padding)
+void layoutScroll(const char *desc, int num_total, int num_screen, int current, const char entries[][12], int padding, bool draw_caret)
 {
 	layoutLast = layoutScroll;
 
@@ -110,6 +110,9 @@ void layoutScroll(const char *desc, int num_total, int num_screen, int current, 
 
 	if (desc)
 		oledDrawStringCenterMultiline(OLED_HEIGHT - FONT_HEIGHT * 2 - 2, desc);
+
+	if (draw_caret)
+		oledDrawCaret();
 
 	oledRefresh();
 }

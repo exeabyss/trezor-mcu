@@ -277,7 +277,6 @@ void oledDrawChar(int x, int y, char c, int zoom)
 void oledDrawCaret(void)
 {
 	oledDrawCharUpdateCaret(caret_x, caret_y, '\x03', caret_zoom, false);
-	oledRefresh();
 }
 
 char oledConvertChar(const char c) {

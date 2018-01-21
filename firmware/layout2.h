@@ -37,7 +37,7 @@ extern void *layoutLast;
 
 void layoutDialogSwipe(const BITMAP *icon, const char *btnNo, const char *btnYes, const char *desc, const char *line1, const char *line2, const char *line3, const char *line4, const char *line5, const char *line6);
 void layoutProgressSwipe(const char *desc, int permil);
-void layoutScroll(const char *desc, int num_total, int num_screen, int current, const char entries[][12], int padding);
+void layoutScroll(const char *desc, int num_total, int num_screen, int current, const char entries[][12], int padding, bool draw_caret);
 
 void layoutScreensaver(void);
 void layoutHome(void);

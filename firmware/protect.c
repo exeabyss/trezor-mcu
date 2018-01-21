@@ -399,9 +399,7 @@ int inputPassphraseNavigation(char *passphrase, int *passphrasecharindex, const 
 				entryindex = (entryindex - 1 + numtotal) % numtotal;
 		}
 
-		layoutScroll(passphrase, numtotal, numscreen, entryindex, entries, padding);
-		if (*caret < CaretShowThreshold)
-			oledDrawCaret();
+		layoutScroll(passphrase, numtotal, numscreen, entryindex, entries, padding, *caret < CaretShowThreshold);
 	}
 }
 
