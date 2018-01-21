@@ -158,25 +158,37 @@ void layoutHome(void)
 	system_millis_lock_start = system_millis;
 }
 
-void layoutCheckPassphrase(const char *passphrase)
+void layoutCheckPassphrase(const char *passphrase, bool enable_edit, bool enable_done)
 {
 	layoutLast = layoutCheckPassphrase;
 	layoutSwipe();
 
 	oledClear();
-	oledDrawString(0, 0 * 9, "Check the passphrase:");
+
+	if (enable_edit && enable_done)
+		oledDrawString(0, 0 * 9, "Confirm passphrase:");
+	else if (enable_edit)
+		oledDrawString(0, 0 * 9, "Passphrases mismatched:");
+	else
+		oledDrawString(0, 0 * 9, "Passphrase confirmed:");
 
 	oledDrawStringCenterMultiline(OLED_HEIGHT / 2 - 2, passphrase);
 
-	const char *btnNo = "Edit";
-	oledDrawString(1, OLED_HEIGHT - 8, "\x15");
-	oledDrawString(fontCharWidth('\x15') + 3, OLED_HEIGHT - 8, btnNo);
-	oledInvert(0, OLED_HEIGHT - 9, fontCharWidth('\x15') + oledStringWidth(btnNo) + 2, OLED_HEIGHT - 1);
+	if (enable_edit)
+	{
+		const char *btnNo = "Edit";
+		oledDrawString(1, OLED_HEIGHT - 8, "\x15");
+		oledDrawString(fontCharWidth('\x15') + 3, OLED_HEIGHT - 8, btnNo);
+		oledInvert(0, OLED_HEIGHT - 9, fontCharWidth('\x15') + oledStringWidth(btnNo) + 2, OLED_HEIGHT - 1);
+	}
 
-	const char *btnYes = "Done";
-	oledDrawString(OLED_WIDTH - fontCharWidth('\x06') - 1, OLED_HEIGHT - 8, "\x06");
-	oledDrawString(OLED_WIDTH - oledStringWidth(btnYes) - fontCharWidth('\x06') - 3, OLED_HEIGHT - 8, btnYes);
-	oledInvert(OLED_WIDTH - oledStringWidth(btnYes) - fontCharWidth('\x06') - 4, OLED_HEIGHT - 9, OLED_WIDTH - 1, OLED_HEIGHT - 1);
+	if (enable_done)
+	{
+		const char *btnYes = "Done";
+		oledDrawString(OLED_WIDTH - fontCharWidth('\x06') - 1, OLED_HEIGHT - 8, "\x06");
+		oledDrawString(OLED_WIDTH - oledStringWidth(btnYes) - fontCharWidth('\x06') - 3, OLED_HEIGHT - 8, btnYes);
+		oledInvert(OLED_WIDTH - oledStringWidth(btnYes) - fontCharWidth('\x06') - 4, OLED_HEIGHT - 9, OLED_WIDTH - 1, OLED_HEIGHT - 1);
+	}
 
 	oledHLine(OLED_HEIGHT - 13);
 

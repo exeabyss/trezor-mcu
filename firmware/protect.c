@@ -479,9 +479,9 @@ void inputPassphrase(char *passphrase)
 	}
 }
 
-bool checkPassphrase(const char *passphrase)
+bool checkPassphrase(const char *passphrase, bool enable_edit, bool enable_done)
 {
-	layoutCheckPassphrase(passphrase);
+	layoutCheckPassphrase(passphrase, enable_edit, enable_done);
 
 	buttonUpdate();
 
@@ -489,9 +489,9 @@ bool checkPassphrase(const char *passphrase)
 	{
 		usbSleep(5);
 		buttonUpdate();
-		if (button.YesUp)
+		if (enable_done && button.YesUp)
 			return true;
-		if (button.NoUp)
+		if (enable_edit && button.NoUp)
 			return false;
 	}
 }
@@ -534,34 +534,29 @@ bool protectPassphraseDevice(void)
 	}
 	layoutSwipe();
 
-	bool once = button.NoUp;
+	bool twice = button.YesUp;
+
+	layoutDialog(NULL, NULL, _("Next"), NULL, _("Enter the passphrase"), _("on the next screen."), _("- Single button: scroll."), _("- Hold: auto-scroll."), _("- Both buttons: confirm."), NULL);
+	waitForYesButton();
+	layoutSwipe();
 
 	for (;;)
 	{
-		layoutDialog(NULL, NULL, _("Next"), NULL, _("Enter the passphrase"), _("on the next screen."), _("- Single button: scroll."), _("- Hold: auto-scroll."), _("- Both buttons: confirm."), NULL);
-		waitForYesButton();
-		layoutSwipe();
+		inputPassphrase(passphrase);
 
-		for (;;)
-		{
-			inputPassphrase(passphrase);
-			layoutSwipe();
-
-			if (checkPassphrase(passphrase))
-				break;
-
-			oledSwipeRight();
-		}
-
-		layoutSwipe();
-
-		if (once)
+		if (checkPassphrase(passphrase, true, true))
 			break;
-		
+
+		oledSwipeRight();
+	}
+
+	if (twice)
+	{
 		static char CONFIDENTIAL passphrase2[51];
 
 		memset(passphrase2, 0, 51);
 
+		layoutSwipe();
 		layoutDialog(NULL, NULL, _("Next"), NULL, _("Re-enter the passphrase."), NULL, NULL, NULL, NULL, NULL);
 		waitForYesButton();
 		layoutSwipe();
@@ -569,26 +564,16 @@ bool protectPassphraseDevice(void)
 		for (;;)
 		{
 			inputPassphrase(passphrase2);
-			layoutSwipe();
 
-			if (checkPassphrase(passphrase2))
+			if (strcmp(passphrase, passphrase2) == 0)
 				break;
 
+			checkPassphrase(passphrase2, true, false);
 			oledSwipeRight();
 		}
-
-		layoutSwipe();
-
-		if (strcmp(passphrase, passphrase2) == 0)
-			break;
-
-		layoutDialog(NULL, NULL, _("Next"), NULL, _("Passphrases do not"), _("match. Try again."), NULL, NULL, NULL, NULL);
-		waitForYesButton();
-		layoutSwipe();
-
-		memset(passphrase, 0, 51);
-		memset(passphrase2, 0, 51);
 	}
+
+	checkPassphrase(passphrase, false, true);
 
 	for (int i = 0; i < 51 && passphrase[i]; ++i)
 		if (passphrase[i] == 0x09) // Space

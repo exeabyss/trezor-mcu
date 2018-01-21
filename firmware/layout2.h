@@ -41,7 +41,7 @@ void layoutScroll(const char *desc, int num_total, int num_screen, int current, 
 
 void layoutScreensaver(void);
 void layoutHome(void);
-void layoutCheckPassphrase(const char *passphrase);
+void layoutCheckPassphrase(const char *passphrase, bool enable_edit, bool enable_done);
 void layoutConfirmOutput(const CoinInfo *coin, const TxOutputType *out);
 void layoutConfirmOpReturn(const uint8_t *data, uint32_t size);
 void layoutConfirmTx(const CoinInfo *coin, uint64_t amount_out, uint64_t amount_fee);
